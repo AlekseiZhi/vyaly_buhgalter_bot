@@ -63,7 +63,10 @@ public class StatisticsServiceImpl implements StatisticsService {
                 .filter(Objects::nonNull)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-        int gamesPlayed = userParts.size();
+        int gamesPlayed = (int) userParts.stream()
+                .map(p -> p.getGameSession().getId())
+                .distinct()
+                .count();
 
         log.debug("Statistics for user {}: games={}, time={}, spent={}", userId, gamesPlayed, totalPlayTime, totalSpent);
         return new PlayerStatistics(userId, username, totalPlayTime, totalSpent, gamesPlayed);

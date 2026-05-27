@@ -15,9 +15,12 @@ import java.math.RoundingMode;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
-import java.util.stream.IntStream;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -59,60 +62,95 @@ public class CostCalculationServiceImpl implements CostCalculationService {
             return new GameCostResult(totalCost, List.of());
         }
 
-        List<Duration> durations = participations.stream()
-                .map(p -> p.computeDuration(endTime))
+        // Group all participation rows by user — a player may have joined/left multiple times.
+        Map<Long, List<Participation>> byUser = participations.stream()
+                .collect(Collectors.groupingBy(Participation::getTelegramUserId));
+
+        // Sum of all durations across all participations of the same user.
+        Map<Long, Duration> durationByUser = byUser.entrySet().stream()
+                .collect(Collectors.toMap(
+                        Map.Entry::getKey,
+                        e -> e.getValue().stream()
+                                .map(p -> p.computeDuration(endTime))
+                                .reduce(Duration.ZERO, Duration::plus)
+                ));
+
+        Duration totalDuration = durationByUser.values().stream()
+                .reduce(Duration.ZERO, Duration::plus);
+
+        // Calculate one cost per unique player.
+        Map<Long, BigDecimal> costByUser = totalDuration.isZero()
+                ? splitEqually(byUser.keySet().stream().toList(), totalCost)
+                : splitProportionally(byUser.keySet().stream().toList(), durationByUser, totalDuration, totalCost);
+
+        // Persist calculatedCost on every participation row, splitting proportionally
+        // within the user's own rows so the per-row amounts sum to the user's total cost.
+        byUser.forEach((userId, parts) ->
+                applyUserCostToParticipations(parts, costByUser.get(userId), endTime));
+
+        // One result entry per unique player, sorted by cost descending.
+        List<ParticipantCost> participantCosts = byUser.entrySet().stream()
+                .map(e -> {
+                    Long userId = e.getKey();
+                    String username = e.getValue().getLast().getUsername();
+                    return new ParticipantCost(userId, username, durationByUser.get(userId), costByUser.get(userId));
+                })
+                .sorted(Comparator.comparing(ParticipantCost::cost).reversed())
                 .toList();
 
-        Duration totalDuration = durations.stream().reduce(Duration.ZERO, Duration::plus);
-
-        List<ParticipantCost> participantCosts = totalDuration.isZero()
-                ? splitEqually(participations, durations, totalCost)
-                : splitProportionally(participations, durations, totalDuration, totalCost);
-
-        for (int i = 0; i < participations.size(); i++) {
-            participations.get(i).applyCalculatedCost(participantCosts.get(i).cost());
-        }
-
-        log.info("Costs calculated and saved for session {}: {} participants, total={}",
+        log.info("Costs saved for session {}: {} unique players, total={}",
                 gameSessionId, participantCosts.size(), totalCost);
         return new GameCostResult(totalCost, participantCosts);
     }
 
-    private List<ParticipantCost> splitEqually(
-            List<Participation> participations,
-            List<Duration> durations,
-            BigDecimal totalCost) {
-        BigDecimal share = totalCost.divide(BigDecimal.valueOf(participations.size()), 2, RoundingMode.HALF_UP);
-        return buildResults(participations, durations, (p, d) -> share);
+    // ── cost-splitting helpers ──────────────────────────────────────────────
+
+    private Map<Long, BigDecimal> splitEqually(List<Long> userIds, BigDecimal totalCost) {
+        BigDecimal share = totalCost.divide(BigDecimal.valueOf(userIds.size()), 2, RoundingMode.HALF_UP);
+        return userIds.stream().collect(Collectors.toMap(Function.identity(), id -> share));
     }
 
-    private List<ParticipantCost> splitProportionally(
-            List<Participation> participations,
-            List<Duration> durations,
-            Duration totalDuration,
-            BigDecimal totalCost) {
+    private Map<Long, BigDecimal> splitProportionally(List<Long> userIds,
+                                                       Map<Long, Duration> durationByUser,
+                                                       Duration totalDuration,
+                                                       BigDecimal totalCost) {
         BigDecimal totalMs = BigDecimal.valueOf(totalDuration.toMillis());
-        return buildResults(participations, durations, (p, duration) -> {
-            BigDecimal userMs = BigDecimal.valueOf(duration.toMillis());
-            return totalCost.multiply(userMs).divide(totalMs, 2, RoundingMode.HALF_UP);
+        return userIds.stream().collect(Collectors.toMap(
+                Function.identity(),
+                id -> {
+                    BigDecimal userMs = BigDecimal.valueOf(durationByUser.get(id).toMillis());
+                    return totalCost.multiply(userMs).divide(totalMs, 2, RoundingMode.HALF_UP);
+                }
+        ));
+    }
+
+    /**
+     * Distributes a user's total cost across their individual participation rows
+     * proportionally to each row's duration (so per-row amounts sum to userCost).
+     */
+    private void applyUserCostToParticipations(List<Participation> parts,
+                                                BigDecimal userCost,
+                                                Instant endTime) {
+        if (parts.size() == 1) {
+            parts.getFirst().applyCalculatedCost(userCost);
+            return;
+        }
+
+        Duration userTotal = parts.stream()
+                .map(p -> p.computeDuration(endTime))
+                .reduce(Duration.ZERO, Duration::plus);
+
+        if (userTotal.isZero()) {
+            BigDecimal share = userCost.divide(BigDecimal.valueOf(parts.size()), 2, RoundingMode.HALF_UP);
+            parts.forEach(p -> p.applyCalculatedCost(share));
+            return;
+        }
+
+        BigDecimal userTotalMs = BigDecimal.valueOf(userTotal.toMillis());
+        parts.forEach(p -> {
+            BigDecimal partMs = BigDecimal.valueOf(p.computeDuration(endTime).toMillis());
+            BigDecimal partCost = userCost.multiply(partMs).divide(userTotalMs, 2, RoundingMode.HALF_UP);
+            p.applyCalculatedCost(partCost);
         });
-    }
-
-    @FunctionalInterface
-    private interface CostFunction {
-        BigDecimal apply(Participation participation, Duration duration);
-    }
-
-    private List<ParticipantCost> buildResults(
-            List<Participation> participations,
-            List<Duration> durations,
-            CostFunction costFn) {
-        return IntStream.range(0, participations.size())
-                .mapToObj(i -> {
-                    Participation p = participations.get(i);
-                    Duration d = durations.get(i);
-                    return new ParticipantCost(p.getTelegramUserId(), p.getUsername(), d, costFn.apply(p, d));
-                })
-                .toList();
     }
 }

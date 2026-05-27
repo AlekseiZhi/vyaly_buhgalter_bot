@@ -1,6 +1,7 @@
 package ru.vyaly_buhgalter.telegram.callback;
 
 import org.springframework.stereotype.Component;
+import org.telegram.telegrambots.meta.api.methods.botapimethods.BotApiMethod;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.objects.CallbackQuery;
 import ru.vyaly_buhgalter.dto.GameHistoryItem;
@@ -8,6 +9,7 @@ import ru.vyaly_buhgalter.service.GameHistoryService;
 import ru.vyaly_buhgalter.telegram.formatter.GameMessageFormatter;
 import ru.vyaly_buhgalter.telegram.keyboard.InlineKeyboardFactory;
 
+import java.io.Serializable;
 import java.util.List;
 
 @Component
@@ -29,9 +31,10 @@ public class ShowHistoryCallback implements CallbackHandler {
     }
 
     @Override
-    public SendMessage handle(CallbackQuery callbackQuery) {
+    public BotApiMethod<? extends Serializable> handle(CallbackQuery callbackQuery) {
         Long chatId = callbackQuery.getMessage().getChatId();
         List<GameHistoryItem> history = gameHistoryService.getLastGames(chatId, HISTORY_LIMIT);
+        // Send as a new message so the game message stays visible in chat.
         return SendMessage.builder()
                 .chatId(chatId)
                 .text(GameMessageFormatter.formatHistory(history))

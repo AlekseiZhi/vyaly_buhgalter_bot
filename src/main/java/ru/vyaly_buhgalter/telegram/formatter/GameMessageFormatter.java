@@ -2,6 +2,8 @@ package ru.vyaly_buhgalter.telegram.formatter;
 
 import ru.vyaly_buhgalter.dto.GameCostResult;
 import ru.vyaly_buhgalter.dto.GameHistoryItem;
+import ru.vyaly_buhgalter.dto.GameStatus;
+import ru.vyaly_buhgalter.dto.GameStatus.ParticipantStatus;
 import ru.vyaly_buhgalter.dto.PlayerStatistics;
 
 import java.math.BigDecimal;
@@ -20,8 +22,37 @@ public final class GameMessageFormatter {
     private static final ZoneId ZONE = ZoneId.of("Asia/Tbilisi");
     private static final DateTimeFormatter DATE_FMT =
             DateTimeFormatter.ofPattern("dd.MM.yyyy").withZone(ZONE);
+    private static final DateTimeFormatter TIME_FMT =
+            DateTimeFormatter.ofPattern("HH:mm").withZone(ZONE);
 
     private GameMessageFormatter() {}
+
+    public static String formatGameStatus(GameStatus status) {
+        List<ParticipantStatus> active = status.participants().stream()
+                .filter(ParticipantStatus::active).toList();
+        List<ParticipantStatus> left = status.participants().stream()
+                .filter(p -> !p.active()).toList();
+
+        StringBuilder sb = new StringBuilder();
+        sb.append("🏓 Игра идёт | Начало: ").append(TIME_FMT.format(status.startedAt()));
+        sb.append(" | ").append(formatDuration(status.gameDuration())).append("\n");
+
+        if (status.participants().isEmpty()) {
+            sb.append("\nУчастников пока нет — нажмите ➕");
+        } else {
+            if (!active.isEmpty()) {
+                sb.append("\n▶️ В игре (").append(active.size()).append("):\n");
+                active.forEach(p -> sb.append("  • ").append(p.username())
+                        .append(" — ").append(formatDuration(p.totalTime())).append("\n"));
+            }
+            if (!left.isEmpty()) {
+                sb.append("\n⏹ Вышли (").append(left.size()).append("):\n");
+                left.forEach(p -> sb.append("  • ").append(p.username())
+                        .append(" — ").append(formatDuration(p.totalTime())).append("\n"));
+            }
+        }
+        return sb.toString().stripTrailing();
+    }
 
     public static String formatStats(List<PlayerStatistics> stats) {
         if (stats.isEmpty()) {

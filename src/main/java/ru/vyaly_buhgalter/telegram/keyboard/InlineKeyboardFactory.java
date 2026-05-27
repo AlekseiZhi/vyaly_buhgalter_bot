@@ -62,11 +62,6 @@ public class InlineKeyboardFactory {
                         btn("80 ₾",  CallbackData.END_GAME_PREFIX + "80"),
                         btn("100 ₾", CallbackData.END_GAME_PREFIX + "100")
                 ))
-                .keyboardRow(row(
-                        btn("120 ₾", CallbackData.END_GAME_PREFIX + "120"),
-                        btn("150 ₾", CallbackData.END_GAME_PREFIX + "150"),
-                        btn("200 ₾", CallbackData.END_GAME_PREFIX + "200")
-                ))
                 .keyboardRow(row(btn("⬅️ Назад", CallbackData.MAIN_MENU)))
                 .build();
     }

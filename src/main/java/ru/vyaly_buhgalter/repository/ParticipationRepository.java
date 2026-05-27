@@ -20,6 +20,6 @@ public interface ParticipationRepository extends JpaRepository<Participation, Lo
 
     int countByGameSessionId(UUID gameSessionId);
 
-    @Query("SELECT p FROM Participation p WHERE p.gameSession.chatId = :chatId AND p.gameSession.status = :status")
+    @Query("SELECT p FROM Participation p JOIN FETCH p.gameSession gs WHERE gs.chatId = :chatId AND gs.status = :status")
     List<Participation> findAllByGameSessionChatIdAndStatus(@Param("chatId") Long chatId, @Param("status") GameSessionStatus status);
 }
