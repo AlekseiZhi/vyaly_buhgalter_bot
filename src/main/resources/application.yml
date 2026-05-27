@@ -1,0 +1,25 @@
+spring:
+  application:
+    name: vyaly_buhgalter
+
+  datasource:
+    url: jdbc:postgresql://localhost:5432/buhgalter
+    username: postgres
+    password: 123
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        format_sql: true
+    show-sql: false
+
+telegram:
+  bot:
+    token: 8839768650:AAHCV7HZwZNJNTvYg1JwYIqJfGPGJcyitAc
+    username: vyaly_buhgalter_bot
+
+logging:
+  level:
+    ru.vyaly_buhgalter: DEBUG
