@@ -3,13 +3,14 @@ spring:
     name: vyaly_buhgalter
 
   datasource:
-    url: jdbc:postgresql://localhost:5432/buhgalter
-    username: postgres
-    password: 123
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${POSTGRES_DB:buhgalter}
+    username: ${POSTGRES_USER:buhgalter}
+    password: ${POSTGRES_PASSWORD}
+
 
   jpa:
     hibernate:
-      ddl-auto: create
+      ddl-auto: ${HIBERNATE_DDL_AUTO:update}
     properties:
       hibernate:
         format_sql: true
@@ -17,7 +18,7 @@ spring:
 
 telegram:
   bot:
-    token: 8839768650:AAHCV7HZwZNJNTvYg1JwYIqJfGPGJcyitAc
+    token: ${TELEGRAM_BOT_TOKEN}
     username: vyaly_buhgalter_bot
 
 logging:
