@@ -37,7 +37,7 @@ public class GameHistoryServiceImpl implements GameHistoryService {
     }
 
     private GameHistoryItem toHistoryItem(GameSession session) {
-        int playersCount = participationRepository.countByGameSessionId(session.getId());
+        int playersCount = participationRepository.countDistinctPlayersByGameSessionId(session.getId());
         Duration totalDuration = session.getEndedAt() != null
                 ? Duration.between(session.getStartedAt(), session.getEndedAt())
                 : Duration.ZERO;

@@ -60,6 +60,14 @@ public class ParticipationServiceImpl implements ParticipationService {
         return duration;
     }
 
+    @Override
+    public Participation addManualPlayer(Long chatId, String username, Duration duration) {
+        GameSession session = findActiveSession(chatId);
+        Participation p = Participation.manual(session, username, duration, Instant.now(clock));
+        log.info("Manual player '{}' added to session {} with duration {}min", username, session.getId(), duration.toMinutes());
+        return participationRepository.save(p);
+    }
+
     private GameSession findActiveSession(Long chatId) {
         return gameSessionRepository
                 .findByChatIdAndStatus(chatId, GameSessionStatus.ACTIVE)

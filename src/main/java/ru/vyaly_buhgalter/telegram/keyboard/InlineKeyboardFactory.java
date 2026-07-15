@@ -15,10 +15,6 @@ public class InlineKeyboardFactory {
     public InlineKeyboardMarkup buildMainMenu() {
         return InlineKeyboardMarkup.builder()
                 .keyboardRow(row(btn("▶️ Начать игру", CallbackData.START_GAME)))
-                .keyboardRow(row(
-                        btn("📊 Статистика", CallbackData.SHOW_STATS),
-                        btn("📜 История", CallbackData.SHOW_HISTORY)
-                ))
                 .build();
     }
 
@@ -31,11 +27,11 @@ public class InlineKeyboardFactory {
                         btn("➕ Я в игре", CallbackData.JOIN_GAME),
                         btn("➖ Я вышел", CallbackData.LEAVE_GAME)
                 ))
-                .keyboardRow(row(btn("🏁 Завершить игру", CallbackData.END_GAME_MENU)))
                 .keyboardRow(row(
-                        btn("📊 Статистика", CallbackData.SHOW_STATS),
-                        btn("📜 История", CallbackData.SHOW_HISTORY)
+                        btn("📝 Добавить игрока", CallbackData.ADD_PLAYER_HELP),
+                        btn("🔄 Обновить", CallbackData.REFRESH_STATUS)
                 ))
+                .keyboardRow(row(btn("🏁 Завершить игру", CallbackData.END_GAME_MENU)))
                 .build();
     }
 

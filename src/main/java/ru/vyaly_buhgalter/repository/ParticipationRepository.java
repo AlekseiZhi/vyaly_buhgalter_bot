@@ -18,7 +18,8 @@ public interface ParticipationRepository extends JpaRepository<Participation, Lo
 
     Optional<Participation> findByGameSessionIdAndTelegramUserIdAndLeftAtIsNull(UUID gameSessionId, Long telegramUserId);
 
-    int countByGameSessionId(UUID gameSessionId);
+    @Query("SELECT COUNT(DISTINCT p.telegramUserId) FROM Participation p WHERE p.gameSession.id = :gameSessionId")
+    int countDistinctPlayersByGameSessionId(@Param("gameSessionId") UUID gameSessionId);
 
     @Query("SELECT p FROM Participation p JOIN FETCH p.gameSession gs WHERE gs.chatId = :chatId AND gs.status = :status")
     List<Participation> findAllByGameSessionChatIdAndStatus(@Param("chatId") Long chatId, @Param("status") GameSessionStatus status);

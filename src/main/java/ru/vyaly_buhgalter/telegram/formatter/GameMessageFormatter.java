@@ -24,6 +24,8 @@ public final class GameMessageFormatter {
             DateTimeFormatter.ofPattern("dd.MM.yyyy").withZone(ZONE);
     private static final DateTimeFormatter TIME_FMT =
             DateTimeFormatter.ofPattern("HH:mm").withZone(ZONE);
+    private static final DateTimeFormatter TIME_SEC_FMT =
+            DateTimeFormatter.ofPattern("HH:mm:ss").withZone(ZONE);
 
     private GameMessageFormatter() {}
 
@@ -51,6 +53,10 @@ public final class GameMessageFormatter {
                         .append(" — ").append(formatDuration(p.totalTime())).append("\n"));
             }
         }
+        // Current moment derived from startedAt + elapsed; gives a "live" feel and
+        // guarantees content changes on refresh (avoids "message is not modified").
+        sb.append("\n\n🔄 обновлено в ")
+                .append(TIME_SEC_FMT.format(status.startedAt().plus(status.gameDuration())));
         return sb.toString().stripTrailing();
     }
 
@@ -90,7 +96,8 @@ public final class GameMessageFormatter {
         }
         StringBuilder sb = new StringBuilder("🏓 Итоги игры\n\n");
         result.participants().forEach(pc ->
-                sb.append("%s — %s ₾\n".formatted(pc.username(), formatMoney(pc.cost())))
+                sb.append("%s — %s — %s ₾\n".formatted(
+                        pc.username(), formatDuration(pc.duration()), formatMoney(pc.cost())))
         );
         sb.append("\nВсего: %s ₾".formatted(formatMoney(result.totalCost())));
         return sb.toString();

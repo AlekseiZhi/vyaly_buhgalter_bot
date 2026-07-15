@@ -83,8 +83,7 @@ public class CostCalculationServiceImpl implements CostCalculationService {
                 ? splitEqually(byUser.keySet().stream().toList(), totalCost)
                 : splitProportionally(byUser.keySet().stream().toList(), durationByUser, totalDuration, totalCost);
 
-        // Persist calculatedCost on every participation row, splitting proportionally
-        // within the user's own rows so the per-row amounts sum to the user's total cost.
+        // Persist calculatedCost on every participation row.
         byUser.forEach((userId, parts) ->
                 applyUserCostToParticipations(parts, costByUser.get(userId), endTime));
 
