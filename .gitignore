@@ -1,9 +1,13 @@
 HELP.md
 .gradle
-build/
-!gradle/wrapper/gradle-wrapper.jar
-!**/src/main/**/build/
-!**/src/test/**/build/
+build
+.idea
+.git
+.github
+.env
+*.iml
+README.md
+docker-compose.yml
 
 ### STS ###
 .apt_generated
