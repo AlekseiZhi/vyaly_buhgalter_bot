@@ -16,10 +16,40 @@ services:
       - postgres_data:/var/lib/postgresql/data
 
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-buhgalter} -d ${POSTGRES_DB:-buhgalter}"]
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_USER:-buhgalter} -d ${POSTGRES_DB:-buhgalter}"
+        ]
       interval: 10s
       timeout: 5s
       retries: 5
+
+  vyaly-buhgalter-bot:
+    build:
+      context: .
+      dockerfile: Dockerfile
+
+    image: vyaly-buhgalter-bot:local
+    container_name: vyaly-buhgalter-bot
+    restart: unless-stopped
+
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+
+      POSTGRES_DB: ${POSTGRES_DB:-buhgalter}
+      POSTGRES_USER: ${POSTGRES_USER:-buhgalter}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:?Set TELEGRAM_BOT_TOKEN in .env}
+      HIBERNATE_DDL_AUTO: ${HIBERNATE_DDL_AUTO:-update}
+
+      JAVA_TOOL_OPTIONS: "-Xms128m -Xmx512m"
 
 volumes:
   postgres_data:
