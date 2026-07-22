@@ -15,6 +15,7 @@ import ru.vyaly_buhgalter.repository.ParticipationRepository;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.List;
 
 @Slf4j
 @Service
@@ -38,9 +39,20 @@ public class ParticipationServiceImpl implements ParticipationService {
     public Participation joinGame(Long chatId, Long telegramUserId, String username) {
         GameSession session = findActiveSession(chatId);
 
-        participationRepository
-                .findByGameSessionIdAndTelegramUserIdAndLeftAtIsNull(session.getId(), telegramUserId)
-                .ifPresent(p -> { throw new AlreadyJoinedException(telegramUserId); });
+        List<Participation> manualParticipations =
+                findUnlinkedManualParticipations(session, telegramUserId, username);
+        var activeParticipation = participationRepository
+                .findByGameSessionIdAndTelegramUserIdAndLeftAtIsNull(session.getId(), telegramUserId);
+
+        if (activeParticipation.isPresent()) {
+            if (!manualParticipations.isEmpty()) {
+                linkToTelegramAccount(manualParticipations, telegramUserId, username);
+                return activeParticipation.get();
+            }
+            throw new AlreadyJoinedException(telegramUserId);
+        }
+
+        linkToTelegramAccount(manualParticipations, telegramUserId, username);
 
         Participation participation = Participation.join(session, telegramUserId, username, Instant.now(clock));
         log.info("User {} ({}) joined session {}", username, telegramUserId, session.getId());
@@ -63,9 +75,41 @@ public class ParticipationServiceImpl implements ParticipationService {
     @Override
     public Participation addManualPlayer(Long chatId, String username, Duration duration) {
         GameSession session = findActiveSession(chatId);
-        Participation p = Participation.manual(session, username, duration, Instant.now(clock));
+        Long telegramUserId = participationRepository
+                .findAllByGameSessionIdAndUsernameIgnoreCase(session.getId(), username)
+                .stream()
+                .map(Participation::getTelegramUserId)
+                .filter(id -> id > 0)
+                .findFirst()
+                .orElseGet(() -> Participation.syntheticId(username));
+
+        Participation p = Participation.manual(
+                session, telegramUserId, username, duration, Instant.now(clock));
         log.info("Manual player '{}' added to session {} with duration {}min", username, session.getId(), duration.toMinutes());
         return participationRepository.save(p);
+    }
+
+    private List<Participation> findUnlinkedManualParticipations(
+            GameSession session,
+            Long telegramUserId,
+            String username) {
+        return participationRepository
+                .findAllByGameSessionIdAndUsernameIgnoreCase(session.getId(), username)
+                .stream()
+                .filter(Participation::isManual)
+                .filter(p -> !telegramUserId.equals(p.getTelegramUserId()))
+                .toList();
+    }
+
+    private void linkToTelegramAccount(
+            List<Participation> participations,
+            Long telegramUserId,
+            String username) {
+        participations.forEach(p -> p.linkToTelegramAccount(telegramUserId, username));
+        if (!participations.isEmpty()) {
+            log.info("Linked {} manual participation(s) for {} to Telegram user {}",
+                    participations.size(), username, telegramUserId);
+        }
     }
 
     private GameSession findActiveSession(Long chatId) {

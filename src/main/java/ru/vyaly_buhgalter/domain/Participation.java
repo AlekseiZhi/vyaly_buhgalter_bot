@@ -74,10 +74,19 @@ public class Participation {
      * The duration is fixed and does not depend on join/leave timestamps.
      */
     public static Participation manual(GameSession gameSession, String username, Duration duration, Instant now) {
+        return manual(gameSession, syntheticId(username), username, duration, now);
+    }
+
+    public static Participation manual(
+            GameSession gameSession,
+            Long telegramUserId,
+            String username,
+            Duration duration,
+            Instant now) {
         Participation p = new Participation();
         p.gameSession = gameSession;
         p.username = username;
-        p.telegramUserId = syntheticId(username);
+        p.telegramUserId = telegramUserId;
         p.joinedAt = now;
         p.leftAt = now;
         p.manualDurationSeconds = duration.toSeconds();
@@ -104,6 +113,11 @@ public class Participation {
 
     public boolean isManual() {
         return manualDurationSeconds != null;
+    }
+
+    public void linkToTelegramAccount(Long telegramUserId, String username) {
+        this.telegramUserId = telegramUserId;
+        this.username = username;
     }
 
     public void applyCalculatedCost(BigDecimal cost) {

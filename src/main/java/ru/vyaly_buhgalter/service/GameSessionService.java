@@ -10,5 +10,5 @@ public interface GameSessionService {
 
     Optional<GameSession> getActiveGame(Long chatId);
 
-    Optional<GameSession> finishGame(Long chatId);
+    Optional<GameSession> finishGame(Long chatId, Long telegramUserId, String username);
 }

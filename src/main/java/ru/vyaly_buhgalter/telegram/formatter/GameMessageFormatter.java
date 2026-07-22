@@ -9,6 +9,7 @@ import ru.vyaly_buhgalter.dto.PlayerStatistics;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Duration;
+import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
@@ -26,6 +27,8 @@ public final class GameMessageFormatter {
             DateTimeFormatter.ofPattern("HH:mm").withZone(ZONE);
     private static final DateTimeFormatter TIME_SEC_FMT =
             DateTimeFormatter.ofPattern("HH:mm:ss").withZone(ZONE);
+    private static final DateTimeFormatter DATE_TIME_FMT =
+            DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm").withZone(ZONE);
 
     private GameMessageFormatter() {}
 
@@ -86,20 +89,32 @@ public final class GameMessageFormatter {
             String duration = formatDuration(item.totalDuration());
             String players = item.playersCount() + " чел.";
             sb.append("%d. %s — %s — %s — %s\n".formatted(i + 1, date, cost, duration, players));
+            if (item.finishedByUsername() != null && item.endedAt() != null) {
+                sb.append("   Завершил: %s в %s\n".formatted(
+                        item.finishedByUsername(), TIME_FMT.format(item.endedAt())));
+            }
         }
         return sb.toString().stripTrailing();
     }
 
-    public static String formatCostResult(GameCostResult result) {
+    public static String formatCostResult(
+            GameCostResult result,
+            String finishedByUsername,
+            Instant endedAt) {
+        StringBuilder sb = new StringBuilder();
         if (!result.hasParticipants()) {
-            return "🏓 Игра завершена. Участников не было.";
+            sb.append("🏓 Игра завершена. Участников не было.");
+        } else {
+            sb.append("🏓 Итоги игры\n\n");
+            result.participants().forEach(pc ->
+                    sb.append("%s — %s — %s ₾\n".formatted(
+                            pc.username(), formatDuration(pc.duration()), formatMoney(pc.cost())))
+            );
+            sb.append("\nВсего: %s ₾".formatted(formatMoney(result.totalCost())));
         }
-        StringBuilder sb = new StringBuilder("🏓 Итоги игры\n\n");
-        result.participants().forEach(pc ->
-                sb.append("%s — %s — %s ₾\n".formatted(
-                        pc.username(), formatDuration(pc.duration()), formatMoney(pc.cost())))
-        );
-        sb.append("\nВсего: %s ₾".formatted(formatMoney(result.totalCost())));
+
+        sb.append("\n\nЗавершил: ").append(finishedByUsername);
+        sb.append("\nВремя завершения: ").append(DATE_TIME_FMT.format(endedAt));
         return sb.toString();
     }
 

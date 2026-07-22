@@ -46,6 +46,12 @@ public class GameSession {
     @Column(precision = 10, scale = 2)
     private BigDecimal totalCost;
 
+    @Column
+    private Long finishedByTelegramUserId;
+
+    @Column
+    private String finishedByUsername;
+
     protected GameSession() {
         // Required by JPA spec
     }
@@ -58,9 +64,11 @@ public class GameSession {
         return session;
     }
 
-    public void finish(Instant now) {
+    public void finish(Instant now, Long telegramUserId, String username) {
         this.status = GameSessionStatus.FINISHED;
         this.endedAt = now;
+        this.finishedByTelegramUserId = telegramUserId;
+        this.finishedByUsername = username;
     }
 
     public void recordCost(BigDecimal cost) {

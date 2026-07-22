@@ -6,7 +6,9 @@ import java.time.Instant;
 
 public record GameHistoryItem(
         Instant startedAt,
+        Instant endedAt,
         BigDecimal totalCost,
         Duration totalDuration,
-        int playersCount
+        int playersCount,
+        String finishedByUsername
 ) {}

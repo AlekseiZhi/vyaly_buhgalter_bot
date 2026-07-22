@@ -5,7 +5,10 @@ import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.meta.api.methods.botapimethods.BotApiMethod;
 import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageText;
 import org.telegram.telegrambots.meta.api.objects.CallbackQuery;
+import org.telegram.telegrambots.meta.api.objects.User;
+import ru.vyaly_buhgalter.domain.GameSession;
 import ru.vyaly_buhgalter.dto.GameCostResult;
+import ru.vyaly_buhgalter.exception.GameFinishForbiddenException;
 import ru.vyaly_buhgalter.service.CostCalculationService;
 import ru.vyaly_buhgalter.service.GameSessionService;
 import ru.vyaly_buhgalter.telegram.formatter.GameMessageFormatter;
@@ -13,6 +16,7 @@ import ru.vyaly_buhgalter.telegram.keyboard.InlineKeyboardFactory;
 
 import java.io.Serializable;
 import java.math.BigDecimal;
+import java.util.Optional;
 
 @Slf4j
 @Component
@@ -61,7 +65,14 @@ public class EndGameCallback implements CallbackHandler {
                     .build();
         }
 
-        var maybeSession = gameSessionService.finishGame(chatId);
+        User from = callbackQuery.getFrom();
+        Optional<GameSession> maybeSession;
+        try {
+            maybeSession = gameSessionService.finishGame(
+                    chatId, from.getId(), resolveUsername(from));
+        } catch (GameFinishForbiddenException e) {
+            return forbiddenResponse(chatId, messageId);
+        }
         if (maybeSession.isEmpty()) {
             return EditMessageText.builder()
                     .chatId(chatId.toString())
@@ -76,9 +87,25 @@ public class EndGameCallback implements CallbackHandler {
         return EditMessageText.builder()
                 .chatId(chatId.toString())
                 .messageId(messageId)
-                .text(GameMessageFormatter.formatCostResult(result))
+                .text(GameMessageFormatter.formatCostResult(
+                        result,
+                        maybeSession.get().getFinishedByUsername(),
+                        maybeSession.get().getEndedAt()))
                 .replyMarkup(keyboardFactory.buildMainMenu())
                 .build();
+    }
+
+    private EditMessageText forbiddenResponse(Long chatId, Integer messageId) {
+        return EditMessageText.builder()
+                .chatId(chatId.toString())
+                .messageId(messageId)
+                .text("⛔ Завершить игру может только её участник")
+                .replyMarkup(keyboardFactory.buildActiveGameMenu())
+                .build();
+    }
+
+    private String resolveUsername(User user) {
+        return user.getUserName() != null ? "@" + user.getUserName() : user.getFirstName();
     }
 
     private BigDecimal parseCost(String callbackData) {
