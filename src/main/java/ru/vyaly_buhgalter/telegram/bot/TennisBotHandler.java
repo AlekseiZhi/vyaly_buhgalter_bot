@@ -1,6 +1,7 @@
 package ru.vyaly_buhgalter.telegram.bot;
 
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.longpolling.BotSession;
 import org.telegram.telegrambots.longpolling.interfaces.LongPollingUpdateConsumer;
@@ -13,6 +14,10 @@ import ru.vyaly_buhgalter.telegram.handler.UpdateHandler;
 
 @Slf4j
 @Component
+@ConditionalOnProperty(
+        name = "telegram.bot.polling-enabled",
+        havingValue = "true",
+        matchIfMissing = true)
 public class TennisBotHandler implements SpringLongPollingBot, LongPollingSingleThreadUpdateConsumer {
 
     private final BotProperties botProperties;

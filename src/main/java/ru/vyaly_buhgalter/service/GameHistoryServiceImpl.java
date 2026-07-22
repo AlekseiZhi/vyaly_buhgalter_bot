@@ -42,6 +42,12 @@ public class GameHistoryServiceImpl implements GameHistoryService {
                 ? Duration.between(session.getStartedAt(), session.getEndedAt())
                 : Duration.ZERO;
 
-        return new GameHistoryItem(session.getStartedAt(), session.getTotalCost(), totalDuration, playersCount);
+        return new GameHistoryItem(
+                session.getStartedAt(),
+                session.getEndedAt(),
+                session.getTotalCost(),
+                totalDuration,
+                playersCount,
+                session.getFinishedByUsername());
     }
 }

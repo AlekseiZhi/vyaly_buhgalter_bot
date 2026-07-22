@@ -2,14 +2,18 @@ package ru.vyaly_buhgalter.telegram.command;
 
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
+import org.telegram.telegrambots.meta.api.objects.User;
 import org.telegram.telegrambots.meta.api.objects.message.Message;
+import ru.vyaly_buhgalter.domain.GameSession;
 import ru.vyaly_buhgalter.dto.GameCostResult;
+import ru.vyaly_buhgalter.exception.GameFinishForbiddenException;
 import ru.vyaly_buhgalter.service.CostCalculationService;
 import ru.vyaly_buhgalter.service.GameSessionService;
 import ru.vyaly_buhgalter.telegram.formatter.GameMessageFormatter;
 import ru.vyaly_buhgalter.telegram.keyboard.InlineKeyboardFactory;
 
 import java.math.BigDecimal;
+import java.util.Optional;
 
 @Component
 public class EndGameCommand implements BotCommand {
@@ -57,7 +61,18 @@ public class EndGameCommand implements BotCommand {
                     .build();
         }
 
-        var maybeSession = gameSessionService.finishGame(chatId);
+        User from = message.getFrom();
+        Optional<GameSession> maybeSession;
+        try {
+            maybeSession = gameSessionService.finishGame(
+                    chatId, from.getId(), resolveUsername(from));
+        } catch (GameFinishForbiddenException e) {
+            return SendMessage.builder()
+                    .chatId(chatId)
+                    .text("⛔ Завершить игру может только её участник")
+                    .replyMarkup(keyboardFactory.buildActiveGameMenu())
+                    .build();
+        }
         if (maybeSession.isEmpty()) {
             return SendMessage.builder()
                     .chatId(chatId)
@@ -69,8 +84,15 @@ public class EndGameCommand implements BotCommand {
         GameCostResult result = costCalculationService.calculateAndSave(maybeSession.get().getId(), totalCost);
         return SendMessage.builder()
                 .chatId(chatId)
-                .text(GameMessageFormatter.formatCostResult(result))
+                .text(GameMessageFormatter.formatCostResult(
+                        result,
+                        maybeSession.get().getFinishedByUsername(),
+                        maybeSession.get().getEndedAt()))
                 .replyMarkup(keyboardFactory.buildMainMenu())
                 .build();
+    }
+
+    private String resolveUsername(User user) {
+        return user.getUserName() != null ? "@" + user.getUserName() : user.getFirstName();
     }
 }

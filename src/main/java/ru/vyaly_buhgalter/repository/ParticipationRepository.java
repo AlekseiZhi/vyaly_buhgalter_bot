@@ -16,6 +16,10 @@ public interface ParticipationRepository extends JpaRepository<Participation, Lo
 
     List<Participation> findAllByGameSessionId(UUID gameSessionId);
 
+    List<Participation> findAllByGameSessionIdAndUsernameIgnoreCase(UUID gameSessionId, String username);
+
+    boolean existsByGameSessionIdAndTelegramUserId(UUID gameSessionId, Long telegramUserId);
+
     Optional<Participation> findByGameSessionIdAndTelegramUserIdAndLeftAtIsNull(UUID gameSessionId, Long telegramUserId);
 
     @Query("SELECT COUNT(DISTINCT p.telegramUserId) FROM Participation p WHERE p.gameSession.id = :gameSessionId")
